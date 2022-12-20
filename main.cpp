@@ -11,7 +11,8 @@
 #include <GLES2/gl2.h>
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
-
+#include <format>
+#include <filesystem>
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
 // Your own project should not be affected, as you are likely to link with a newer binary of GLFW that is adequate for your version of Visual Studio.
@@ -19,9 +20,19 @@
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
 
-static void glfw_error_callback(int error, const char* description)
-{
+static void glfw_error_callback(int error, const char *description) {
   fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+}
+
+static void HelpMarker(const char *desc) {
+  ImGui::TextDisabled("(?)");
+  if (ImGui::IsItemHovered()) {
+    ImGui::BeginTooltip();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+    ImGui::TextUnformatted(desc);
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+  }
 }
 
 int main() {
@@ -46,7 +57,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
 #else
   // GL 3.0 + GLSL 130
-  const char* glsl_version = "#version 130";
+  const char *glsl_version = "#version 130";
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
   //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
@@ -54,7 +65,7 @@ int main() {
 #endif
 
   // Create window with graphics context
-  GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
+  GLFWwindow *window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
   if (window == NULL)
     return 1;
   glfwMakeContextCurrent(window);
@@ -63,7 +74,8 @@ int main() {
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  ImGuiIO &io = ImGui::GetIO();
+  (void) io;
   //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
   //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
@@ -83,13 +95,24 @@ int main() {
   // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
   // - Read 'docs/FONTS.md' for more instructions and details.
   // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-  //io.Fonts->AddFontDefault();
+//  io.Fonts->AddFontDefault();
   //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-  //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+//  ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
   //IM_ASSERT(font != NULL);
+
+//  ImFontConfig font_config; font_config.OversampleH = 1; font_config.OversampleV = 1; font_config.PixelSnapH = 1;
+  auto name = R"(C:\Windows\Fonts\msyh.ttc)";
+  if (std::filesystem::exists(std::filesystem::status(name))) {
+    io.Fonts->AddFontFromFileTTF(name,
+                                 18.0f,
+                                 NULL,
+                                 io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+    printf("Found font %s\n", name);
+  }else
+    printf("Not found font %s\n", name);
 
   // Our state
   bool show_demo_window = true;
@@ -97,8 +120,7 @@ int main() {
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
   // Main loop
-  while (!glfwWindowShouldClose(window))
-  {
+  while (!glfwWindowShouldClose(window)) {
     // Poll and handle events (inputs, window resize, etc.)
     // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
     // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
@@ -117,6 +139,7 @@ int main() {
 
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
     {
+#if 0
       static float f = 0.0f;
       static int counter = 0;
 
@@ -136,12 +159,42 @@ int main() {
 
       ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
       ImGui::End();
+#else
+      int global_hand = -1;
+      ImGui::Begin("动力学.");
+      auto mode = global_hand == 0 ? "Left" : (global_hand == 1 ? "Right" : "Unknown");
+      ImGui::Text("%s Hand", mode);
+      ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+      if (ImGui::BeginTabBar("Parameters", tab_bar_flags)) {
+        for (int i = 0; i < 3; i++) {
+          if (ImGui::BeginTabItem(std::format("Gear{}", i).c_str())) {
+            for (int j = 0; j < 3; j++) {
+              if (ImGui::BeginTabBar(std::format("Joint{}", j).c_str())) {
+                if (ImGui::BeginTabItem(std::format("Joint{}", j).c_str())) {
+                  static float f = 0;
+                  ImGui::InputFloat("demo", &f, 0.01f, 1.0f, "%.3f");
+                  ImGui::SameLine();
+                  HelpMarker("这是一条测试消息\n""请勿注意！\n");
+                  ImGui::EndTabItem();
+                }
+                ImGui::EndTabBar();
+              }
+            }
+            ImGui::EndTabItem();
+          }
+        }
+        ImGui::EndTabBar();
+      }
+
+      ImGui::Text("FPS: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+      ImGui::End();
+#endif
     }
 
     // 3. Show another simple window.
-    if (show_another_window)
-    {
-      ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+    if (show_another_window) {
+      ImGui::Begin("Another Window",
+                   &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
       ImGui::Text("Hello from another window!");
       if (ImGui::Button("Close Me"))
         show_another_window = false;
@@ -153,7 +206,10 @@ int main() {
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
     glViewport(0, 0, display_w, display_h);
-    glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+    glClearColor(clear_color.x * clear_color.w,
+                 clear_color.y * clear_color.w,
+                 clear_color.z * clear_color.w,
+                 clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
